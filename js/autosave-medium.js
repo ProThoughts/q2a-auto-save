@@ -1,6 +1,5 @@
 $(function($) {
     var is_autosave_start = false;
-    var timer_id;
     var elem_name;
     var snackbarContainer = document.querySelector('#autosave-toast');
     var title_length;
@@ -39,7 +38,7 @@ $(function($) {
     
     function autosave_start(elem_name) {
         is_autosave_start = true;
-        timer_id = setInterval(ajax_set_item, 30000, elem_name);
+        autosave_timer_id = setInterval(ajax_set_item, 30000, elem_name);
     }
     
     function editor_content(elem_name) {
@@ -70,7 +69,7 @@ $(function($) {
         })
         .done(function(res) {
             // console.log('Auto Save');
-            addSnackbar('下書きを保存しました');
+            addSnackbar(as_lang.saved_draft);
         })
         .fail(function(res) {
             console.log(res);
@@ -90,19 +89,27 @@ $(function($) {
                 console.log(xhr.statusText);
             } else {
                 if (res[0] !== null && res[0] !== undefined) {
-                    if ($('#title') !== undefined) {
-                        $('#title').val(res[0].title);
+                    // すでにタイトルや本文が入力されている場合は反映しない
+                    if (($('#title') !== undefined && $('#title').val().length > 0) || get_content_length > 0) {
+                        return;
                     }
-                    var editor_elm = document.getElementsByName(res[0].name);
-                    if (editor_elm.length > 0) {
-                        var target = MediumEditor.getEditorFromElement(editor_elm[0]);
-                        target.setContent(res[0].content, 0);
+                    if (resource === 'question' || resource === 'blog') {
+                        // 質問または飼育日誌
+                        var confirmDialog = document.querySelector('#confirm-autosave');
+                        if (! confirmDialog.showModal) {
+                            dialogPolyfill.registerDialog(confirmDialog);
+                        }
+                        confirmDialog.showModal();
+                        confirmDialog.querySelector('.ok').addEventListener('click', function() {
+                            confirmDialog.close();
+                            set_autosave_content(res[0]);
+                        });
+                        confirmDialog.querySelector('.no').addEventListener('click', function() {
+                            confirmDialog.close();
+                        });
+                    } else {
+                        set_autosave_content(res[0]);
                     }
-                    update_title_length();
-                    update_content_length();
-                    update_confirm_status();
-                    
-                    addSnackbar('下書きを読み込みました');
                 }
             }
         })
@@ -116,14 +123,45 @@ $(function($) {
       var data = { message: string, timeout: 2000 };
       snackbarContainer.MaterialSnackbar.showSnackbar(data);
     }
+
+    function set_autosave_content(res) {
+        if ($('#title') !== undefined) {
+            if ($('#title').val().length <= 0) { 
+                $('#title').val(res.title);
+            }
+        }
+        var editor_elm = document.getElementsByName(res.name);
+        if (editor_elm.length > 0 && get_content_length() <= 0) {
+            var target = MediumEditor.getEditorFromElement(editor_elm[0]);
+            target.setContent(res.content, 0);
+        }
+        if (resource === 'blog') {
+            update_blog_title_length();
+            update_blog_content_length();
+        } else {
+            update_title_length();
+            update_content_length();
+            update_confirm_status();
+        }
+        
+        addSnackbar(as_lang.read_draft);
+    }
+
     function update_title_length(){
         var disabled = true;
         if($('#title').val()) {
+            var parent = $('#title').parent().parent();
+            var title_error = '<span id="title-error" class="mdl-color-text--red">'+as_lang.error_title_msg+'</span>';
             title_length = $('#title').val().length;
             if(title_length >= 20) {
-                $("#title-error").hide();
+                if($("#title-error")[0]) {
+                    $("#title-error").remove();
+                }
             } else {
-                $("#title-error").show();
+                if(!$("#title-error")[0]) {
+                    parent.append(title_error);
+                    $("#title").addClass('error-title');
+                }
             }
             update_confirm_status();
         }
@@ -142,8 +180,10 @@ $(function($) {
         content_length = get_content_length();
         if(content_length >= 20) {
             $("#content-error").hide();
+            $(".editable").removeClass('error-content');
         } else {
             $("#content-error").show();
+            $(".editable").addClass('error-content');
         }
         update_confirm_status();
     }
@@ -158,5 +198,34 @@ $(function($) {
             var content = allContents[editorId].value;
         }
         return $.trim(jQuery(content).text()).length;
+    }
+
+    function update_blog_title_length() {
+        var disabled = true;
+        if($('#title').val()) {
+            title_length = $('#title').val().length;
+            if(title_length >= blog_title_min) {
+                $("#form-title-error").hide();
+                $("#title").removeClass('error-title');
+            } else {
+                $("#form-title-error").show();
+                $("#title").addClass('error-title');
+            }
+        } else {
+            $("#form-title-error").show();
+            $("#title").addClass('error-title');
+        }
+    }
+
+    function update_blog_content_length() {
+        var disabled = true;
+        content_length = get_content_length();
+        if(content_length >= blog_content_min) {
+            $("#form--error").hide();
+            $(".editable").removeClass('error-content');
+        } else {
+            $("#form--error").show();
+            $(".editable").addClass('error-content');
+        }
     }
 });

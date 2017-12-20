@@ -2,8 +2,8 @@
 
 /*
 	Plugin Name: Auto Save
-	Plugin URI: Provide an automatic save.
-	Plugin Description: Test Plugin
+	Plugin URI: https://github.com/yshiga/q2a-auto-save
+	Plugin Description: Provide an automatic save.
 	Plugin Version: 1.0
 	Plugin Date: 2016-10-28
 	Plugin Author: 38qa.net
@@ -18,9 +18,11 @@ if (!defined('QA_VERSION')) { // don't allow this page to be requested directly 
 	exit;
 }
 
+define( 'AS_DIR', dirname( __FILE__ ) );
 define('AS_KEY_QUESTION', 'q2a_as_question');
 define('AS_KEY_ANSWER', 'q2a_as_answer');
 define('AS_KEY_COMMENT', 'q2a_as_comment');
+define('AS_KEY_BLOG', 'q2a_as_blog');
 
 // language
 qa_register_plugin_phrases('qa-auto-save-lang-*.php', 'qa_as_lang');
